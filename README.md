@@ -256,6 +256,7 @@ Torn-down endpoints are never picked by `-best` or `-conf`. They are shown so yo
 | `-P, -tun-ping`         | Measure latency and loss inside the tunnel, and weed out torn-down endpoints                      |
 | `-best`                 | Print one best `ip:port` instead of the tables                                                    |
 | `-conf FILE`            | Write a ready config for the best endpoint (`-conf -` prints it instead)                          |
+| `-conf-count N`         | Write configs for the top N filtered endpoints: `FILE-1.conf`, `FILE-2.conf`, ...                  |
 | `-node`, `-country`     | Keep only these nodes or countries, comma-separated                                               |
 | `-exclude-node`, `-exclude-country` | Drop them instead. Stacks with the two above                                          |
 | `-n, -sample N`         | Addresses to try per subnet (default 5)                                                           |

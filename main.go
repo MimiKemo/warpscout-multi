@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"sync/atomic"
@@ -382,22 +383,36 @@ const (
 )
 
 func writeConfFile(opts options, ph phaseResult) error {
-	best, ok := bestOverall(ph)
-	if !ok {
+	top := topWorking(ph, opts.confCount)
+	if len(top) == 0 {
 		return fmt.Errorf("%s", noWorkingMsg)
 	}
-	// The separator goes to stderr: on a terminal it still splits the config off
-	// the progress lines, and "-conf - > file" stays free of a leading blank line.
-	if opts.conf == confStdout {
-		fmt.Fprintln(os.Stderr)
+	if opts.confCount > 1 && len(top) < opts.confCount {
+		fmt.Fprintln(os.Stderr, errPal.dim(fmt.Sprintf("\nonly %d working endpoints after filtering, want %d configs", len(top), opts.confCount)))
 	}
-	if err := writeConf(opts, best.endpoint, ph.run); err != nil {
-		return fmt.Errorf("failed to write %s: %v", opts.conf, err)
+	for i, best := range top {
+		if opts.conf != confStdout && opts.confCount > 1 {
+			opts.conf = confPathForIndex(opts.conf, i+1)
+		}
+		if err := writeConf(opts, best.endpoint, ph.run); err != nil {
+			return fmt.Errorf("failed to write %s: %v", opts.conf, err)
+		}
+		if opts.conf == confStdout {
+			if i < len(top)-1 {
+				fmt.Fprintln(os.Stderr)
+			}
+			continue
+		}
+		suffix := "\n"
+		if opts.confCount > 1 {
+			suffix = fmt.Sprintf("\n(%d/%d)", i+1, len(top))
+		}
+		note := ""
+		if i == 0 {
+			note = "\n" // splits the first notice off the progress lines, as before
+		}
+		fmt.Fprintln(os.Stderr, errPal.dim(fmt.Sprintf("%s%s config for %s written to %s%s", ph.run.name, note, best.endpoint, opts.conf, suffix)))
 	}
-	if opts.conf == confStdout {
-		return nil
-	}
-	fmt.Fprintln(os.Stderr, errPal.dim(fmt.Sprintf("\n%s config for %s written to %s", ph.run.name, best.endpoint, opts.conf)))
 	if outer != nil {
 		note := fmt.Sprintf("  it holds both tunnels of the chain (outer %s) - split it in two before use", outer.label)
 		if isMihomo(opts.confType) {
@@ -406,7 +421,7 @@ func writeConfFile(opts options, ph phaseResult) error {
 		fmt.Fprintln(os.Stderr, errPal.dim(note))
 	}
 	if ph.run.isMASQUE() && !isMihomo(opts.confType) {
-		if _, port, err := net.SplitHostPort(best.endpoint); err == nil {
+		if _, port, err := net.SplitHostPort(top[0].endpoint); err == nil {
 			h2 := ""
 			if ph.run.isH2() {
 				h2 = " --http2"
@@ -418,15 +433,27 @@ func writeConfFile(opts options, ph phaseResult) error {
 	return nil
 }
 
-func bestOverall(ph phaseResult) (endpointResult, bool) {
-	var best endpointResult
-	found := false
-	for _, r := range workingSorted(ph.results) {
-		if !found || lessByLossRTT(r, best) {
-			best, found = r, true
-		}
+// confPathForIndex turns "warp.conf" into "warp-1.conf" so N configs written in
+// one run do not overwrite each other.
+func confPathForIndex(path string, index int) string {
+	ext := filepath.Ext(path)
+	return fmt.Sprintf("%s-%d%s", strings.TrimSuffix(path, ext), index, ext)
+}
+
+func topWorking(ph phaseResult, count int) []endpointResult {
+	ranked := workingSorted(ph.results)
+	if count < 1 {
+		count = 1
 	}
-	return best, found
+	return ranked[:min(count, len(ranked))]
+}
+
+func bestOverall(ph phaseResult) (endpointResult, bool) {
+	top := topWorking(ph, 1)
+	if len(top) == 0 {
+		return endpointResult{}, false
+	}
+	return top[0], true
 }
 
 func printBest(w io.Writer, ph phaseResult) error {

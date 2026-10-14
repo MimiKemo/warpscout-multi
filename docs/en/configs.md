@@ -44,6 +44,15 @@ warpscout scan -p awg -conf -
 warpscout scan -p awg -conf - > warp.conf
 ```
 
+`-conf-count N` writes a config for each of the top N endpoints left after the
+filters, ranked the same way `-best` ranks. With a file name they are numbered:
+`-conf warp.conf -conf-count 5` gives `warp-1.conf` ... `warp-5.conf`; with
+`-conf -` the configs print one after another:
+
+```sh
+warpscout scan -p awg -country SE,DE,FI -conf warp.conf -conf-count 5
+```
+
 | Flag          | What it does                                                                   |
 | ------------- | -------------------------------------------------------------------------------- |
 | `-table-off`  | Keep the config from touching routes. For when you route traffic yourself         |

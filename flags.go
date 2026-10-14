@@ -27,6 +27,7 @@ type options struct {
 	endpoint       string
 	output         string
 	conf           string
+	confCount      int
 	confType       string
 	bestBy         string
 	sweepPorts     string
@@ -127,6 +128,7 @@ var (
 		{"o", "output", "FILE", "full per-endpoint report file (default warpscout-report-<timestamp>.txt)"},
 		{"", "no-report", "", "skip the report file entirely (overrides -o)"},
 		{"", "conf", "FILE", "write a ready-to-import config for the best endpoint (\"-\" prints it instead)"},
+		{"", "conf-count", "N", "how many top endpoints to write configs for: -conf FILE gets N files like FILE-1.conf, FILE-2.conf; with \"-conf -\" they print one after another"},
 		{"", "conf-type", "KIND", "format of -conf: native (wg/awg .conf, usque config.json), mihomo or mihomo-json"},
 		{"", "table-off", "", "add \"Table = off\" to the generated config: bring the interface up without touching routes"},
 		{"", "mtu", "N", "set MTU in the generated config (default: leave the line out)"},
@@ -267,6 +269,7 @@ func setupScanFlags(fs *flag.FlagSet, o *options) {
 	fs.BoolVar(&o.best, "best", false, "")
 	fs.StringVar(&o.bestBy, "best-by", bestKeyPing, "")
 	fs.StringVar(&o.conf, "conf", "", "")
+	fs.IntVar(&o.confCount, "conf-count", 1, "")
 	fs.StringVar(&o.confType, "conf-type", confTypeNative, "")
 	fs.StringVar(&masqueSNI, "masque-sni", masqueDefaultSNI, "")
 	fs.IntVar(&masqueAttempts, "masque-attempts", masqueDefaultAttempts, "")
@@ -386,6 +389,7 @@ func applyCommonFlags(fs *flag.FlagSet, o *options) {
 	applyPingTarget(*o)
 	validateBestBy(o)
 	rejectBestConfStdout(*o)
+	validateConfCount(*o)
 	applyDNS(o)
 	applyTarget(o)
 	applyNode(o)
@@ -555,6 +559,16 @@ func validateMTU(o options) {
 func rejectBestConfStdout(o options) {
 	if o.best && o.conf == confStdout {
 		fmt.Fprintln(os.Stderr, "-best and -conf - both write to stdout: use one or the other")
+		os.Exit(2)
+	}
+}
+
+func validateConfCount(o options) {
+	if o.conf == "" || o.confCount == 1 {
+		return
+	}
+	if o.confCount < 1 {
+		fmt.Fprintf(os.Stderr, "-conf-count (%d) must be at least 1\n", o.confCount)
 		os.Exit(2)
 	}
 }
