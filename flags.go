@@ -128,7 +128,7 @@ var (
 		{"o", "output", "FILE", "full per-endpoint report file (default warpscout-report-<timestamp>.txt)"},
 		{"", "no-report", "", "skip the report file entirely (overrides -o)"},
 		{"", "conf", "FILE", "write a ready-to-import config for the best endpoint (\"-\" prints it instead)"},
-		{"", "conf-count", "N", "how many top endpoints to write configs for: -conf FILE gets N files like FILE-1.conf, FILE-2.conf; with \"-conf -\" they print one after another"},
+		{"", "conf-count", "N", "how many top endpoints to write configs for: -conf FILE gets N files like FILE-01.conf, FILE-02.conf etc.."},
 		{"", "conf-type", "KIND", "format of -conf: native (wg/awg .conf, usque config.json), mihomo or mihomo-json"},
 		{"", "table-off", "", "add \"Table = off\" to the generated config: bring the interface up without touching routes"},
 		{"", "mtu", "N", "set MTU in the generated config (default: leave the line out)"},

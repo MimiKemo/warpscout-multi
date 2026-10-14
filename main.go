@@ -390,9 +390,15 @@ func writeConfFile(opts options, ph phaseResult) error {
 	if opts.confCount > 1 && len(top) < opts.confCount {
 		fmt.Fprintln(os.Stderr, errPal.dim(fmt.Sprintf("\nonly %d working endpoints after filtering, want %d configs", len(top), opts.confCount)))
 	}
+	confBase := opts.conf
+	multi := opts.confCount > 1 && confBase != confStdout
+	firstConf := confBase
+	if multi {
+		firstConf = confPathForIndex(confBase, 1)
+	}
 	for i, best := range top {
-		if opts.conf != confStdout && opts.confCount > 1 {
-			opts.conf = confPathForIndex(opts.conf, i+1)
+		if multi {
+			opts.conf = confPathForIndex(confBase, i+1)
 		}
 		if err := writeConf(opts, best.endpoint, ph.run); err != nil {
 			return fmt.Errorf("failed to write %s: %v", opts.conf, err)
@@ -404,7 +410,7 @@ func writeConfFile(opts options, ph phaseResult) error {
 			continue
 		}
 		suffix := "\n"
-		if opts.confCount > 1 {
+		if multi {
 			suffix = fmt.Sprintf("\n(%d/%d)", i+1, len(top))
 		}
 		note := ""
@@ -427,17 +433,17 @@ func writeConfFile(opts options, ph phaseResult) error {
 				h2 = " --http2"
 			}
 			fmt.Fprintln(os.Stderr, errPal.dim(fmt.Sprintf(
-				"  run it with: usque socks -c %s -P %s -s %s%s", opts.conf, port, masqueSNI, h2)))
+				"  run it with: usque socks -c %s -P %s -s %s%s", firstConf, port, masqueSNI, h2)))
 		}
 	}
 	return nil
 }
 
-// confPathForIndex turns "warp.conf" into "warp-1.conf" so N configs written in
-// one run do not overwrite each other.
+// confPathForIndex turns "warp.conf" into "warp-01.conf" so N configs written
+// in one run do not overwrite each other and still sort by name.
 func confPathForIndex(path string, index int) string {
 	ext := filepath.Ext(path)
-	return fmt.Sprintf("%s-%d%s", strings.TrimSuffix(path, ext), index, ext)
+	return fmt.Sprintf("%s-%02d%s", strings.TrimSuffix(path, ext), index, ext)
 }
 
 func topWorking(ph phaseResult, count int) []endpointResult {
